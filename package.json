@@ -1,0 +1,11 @@
+{
+  "name": "zkverify-contracts",
+  "version": "0.1.0",
+  "description": "Solidity contracts for attestation of zkVerify chain",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Horizen Labs <admin@horizenlabs.io>",
+  "license": "Apache-2.0"
+}

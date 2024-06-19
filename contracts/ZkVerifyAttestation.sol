@@ -1,17 +1,16 @@
-// SPDX-License-Identifier: AGPL-3.0
+// SPDX-License-Identifier: Apache-2.0
 
 pragma solidity 0.8.20;
 
-import "./interfaces/INewHorizenProofVerifier.sol";
+import "./interfaces/IZkVerifyAttestation.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./lib/Merkle.sol";
 
 /**
- * @title NewHorizenProofVerifier Contract
- * @notice It allows submitting and verifying attestation proofs that occur off-chain.
- * @dev this replaces the default FflonkVerifier used in CDKValidium
+ * @title ZkVerifyAttestation Contract
+ * @notice It allows submitting and verifying attestation proofs coming from zkVerify chain.
  */
-contract NewHorizenProofVerifier is INewHorizenProofVerifier, AccessControl {
+contract ZkVerifyAttestation is IZkVerifyAttestation, AccessControl {
 
    /// @dev Role required for operator to submit/verify proofs.
    bytes32 public constant OPERATOR = keccak256("OPERATOR");

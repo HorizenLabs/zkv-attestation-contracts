@@ -1,8 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("NewHorizenProofVerifier contract", function () {
-  let NewHorizenProofVerifier;
+describe("ZkVerifyAttestation contract", function () {
+  let ZkVerifyAttestation;
   let verifierInstance;
 
   const initialAttestationId = 1;
@@ -76,8 +76,8 @@ describe("NewHorizenProofVerifier contract", function () {
    */
   beforeEach(async function () {
     [owner, operator, addr1, addr2, ...addrs] = await ethers.getSigners();
-    NewHorizenProofVerifier = await ethers.getContractFactory(
-      "NewHorizenProofVerifier"
+    ZkVerifyAttestation = await ethers.getContractFactory(
+      "ZkVerifyAttestation"
     );
 
     /*************************************************************
@@ -86,9 +86,7 @@ describe("NewHorizenProofVerifier contract", function () {
      *************************************************************/
 
     //deploy verifier
-    verifierInstance = await NewHorizenProofVerifier.deploy(
-      operator.getAddress()
-    );
+    verifierInstance = await ZkVerifyAttestation.deploy(operator.getAddress());
     await verifierInstance.deployed();
   });
 

@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 /**
  * @dev Define interface Horizen verifier
  */
-interface INewHorizenProofVerifier {
+interface IZkVerifyAttestation {
 
     function submitAttestation(
         uint256 _attestationId,

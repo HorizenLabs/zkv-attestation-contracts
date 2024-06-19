@@ -5,14 +5,12 @@ describe("ZkVerifyAttestation contract", function () {
   let ZkVerifyAttestation;
   let verifierInstance;
 
-  const initialAttestationId = 1;
-
-  let proofsAttestations;
+  const initialAttestationId = 1n;
 
   let owner, operator, addr1, addr2, addrs;
 
-  let operatorRole = ethers.utils.solidityKeccak256(["string"], ["OPERATOR"]);
-  let ownerRole = ethers.utils.formatBytes32String("");
+  let operatorRole = ethers.solidityPackedKeccak256(["string"], ["OPERATOR"]);
+  let ownerRole = ethers.encodeBytes32String("");
 
   let minSubstrateTree = {
     root: "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6",
@@ -87,7 +85,7 @@ describe("ZkVerifyAttestation contract", function () {
 
     //deploy verifier
     verifierInstance = await ZkVerifyAttestation.deploy(operator.getAddress());
-    await verifierInstance.deployed();
+    await verifierInstance.waitForDeployment();
   });
 
   it("should initialize correct parameters", async function () {
@@ -103,7 +101,7 @@ describe("ZkVerifyAttestation contract", function () {
     await verifierInstance
       .connect(owner)
       .grantRole(operatorRole, addr1.getAddress());
-    expect(
+    await expect(
       verifierInstance
         .connect(addr1)
         .grantRole(operatorRole, addr1.getAddress())
@@ -127,15 +125,15 @@ describe("ZkVerifyAttestation contract", function () {
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations([initialAttestationId])
+        .proofsAttestations(initialAttestationId)
     ).to.equal(substrateTree.root);
   });
 
   it("non-operator cannot invoke submitAttestation", async function () {
-    expect(
+    await expect(
       verifierInstance
         .connect(owner)
-        .submitAttestation(initialAttestationId, proofsAttestations)
+        .submitAttestation(initialAttestationId, substrateTree.root)
     ).to.be.revertedWith(
       "AccessControl: account " +
         (await owner.getAddress()).toLowerCase() +
@@ -155,7 +153,7 @@ describe("ZkVerifyAttestation contract", function () {
   });
 
   it("non-operator cannot enable sequel attestations", async function () {
-    expect(
+    await expect(
       verifierInstance.connect(addr2).flipIsEnforcingSequentialAttestations()
     ).to.be.revertedWith(
       "AccessControl: account " +
@@ -176,7 +174,7 @@ describe("ZkVerifyAttestation contract", function () {
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations([initialAttestationId])
+        .proofsAttestations(initialAttestationId)
     ).to.equal(substrateTree.root);
 
     /* Negative Case */
@@ -184,7 +182,7 @@ describe("ZkVerifyAttestation contract", function () {
       verifierInstance
         .connect(operator)
         .submitAttestation(initialAttestationId, substrateTree.root)
-    ).to.be.revertedWith("InvalidAttestation");
+    ).to.be.revertedWithCustomError(verifierInstance, "InvalidAttestation");
   });
 
   /********************************
@@ -193,26 +191,26 @@ describe("ZkVerifyAttestation contract", function () {
    *
    ********************************/
   it("non-operator cannot invoke submitAttestationBatch", async function () {
-    expect(
+    await expect(
       verifierInstance
         .connect(addr2)
         .submitAttestationBatch([initialAttestationId], [substrateTree.root])
     ).to.be.revertedWith(
       "AccessControl: account " +
-        (await owner.getAddress()).toLowerCase() +
+        (await addr2.getAddress()).toLowerCase() +
         " is missing role 0x523a704056dcd17bcf83bed8b68c59416dac1119be77755efe3bde0a64e46e0c"
     );
   });
 
   it("submitAttestationBatch must have an equal number of ids to proofs", async function () {
-    expect(
+    await expect(
       verifierInstance
-        .connect(addr2)
+        .connect(operator)
         .submitAttestationBatch(
-          [initialAttestationId, initialAttestationId + 1],
+          [initialAttestationId, initialAttestationId + 1n],
           [substrateTree.root]
         )
-    ).to.be.revertedWith("InvalidBatchCounts");
+    ).to.be.revertedWithCustomError(verifierInstance, "InvalidBatchCounts");
   });
 
   it("when sequencing is enabled, sequence enforced on submitAttestationBatch", async function () {
@@ -230,14 +228,14 @@ describe("ZkVerifyAttestation contract", function () {
 
     await verifierInstance.connect(operator).submitAttestationBatch(ids, roots);
     await expect(
-      await verifierInstance.connect(operator).proofsAttestations([3])
+      await verifierInstance.connect(operator).proofsAttestations(3n)
     ).to.equal(substrateTree.root);
 
     /* Negative Case */
     ids = [5, 6, 7];
     await expect(
       verifierInstance.connect(operator).submitAttestationBatch(ids, roots)
-    ).to.be.revertedWith("InvalidAttestation");
+    ).to.be.revertedWithCustomError(verifierInstance, "InvalidAttestation");
   });
 
   /********************************
@@ -252,7 +250,7 @@ describe("ZkVerifyAttestation contract", function () {
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations([initialAttestationId])
+        .proofsAttestations(initialAttestationId)
     ).to.equal(substrateTree.root);
 
     for (let i = 0, j = 1; i < substrateTree.leaves.length; i++, j++) {
@@ -276,7 +274,7 @@ describe("ZkVerifyAttestation contract", function () {
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations([initialAttestationId])
+        .proofsAttestations(initialAttestationId)
     ).to.equal(substrateTree.root);
 
     let leafIndex = 6;
@@ -303,7 +301,7 @@ describe("ZkVerifyAttestation contract", function () {
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations([initialAttestationId])
+        .proofsAttestations(initialAttestationId)
     ).to.equal(substrateTree.root);
 
     let outOfBoundsLeafIndex = 8;
@@ -318,7 +316,7 @@ describe("ZkVerifyAttestation contract", function () {
           substrateTree.leaves.length,
           outOfBoundsLeafIndex
         )
-    ).to.be.revertedWith("IndexOutOfBounds");
+    ).to.be.revertedWithCustomError(verifierInstance, "IndexOutOfBounds");
   });
 
   it("verifyProofAttestation returns true if only one leaf and leaf matches root", async function () {
@@ -328,7 +326,7 @@ describe("ZkVerifyAttestation contract", function () {
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations([initialAttestationId])
+        .proofsAttestations(initialAttestationId)
     ).to.equal(minSubstrateTree.root);
 
     let returnVal = await verifierInstance

@@ -1,0 +1,18 @@
+{
+  "name": "zkv-attestation-contracts",
+  "version": "0.1.0",
+  "description": "Solidity contracts for attestation of zkVerify chain",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Horizen Labs <admin@horizenlabs.io>",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.5"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "4.8.2"
+  }
+}

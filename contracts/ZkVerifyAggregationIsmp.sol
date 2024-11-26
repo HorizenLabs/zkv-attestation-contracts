@@ -109,7 +109,7 @@ contract ZkVerifyAggregationIsmp is IZkVerifyAggregation, AccessControl, BaseIsm
     /**
      * @notice Receive hyperbridge message containing an aggregation
      * @param incoming request from hyperbridge
-     * @dev caller must have the OPERATOR role, admin can add caller via AccessControl.grantRole()
+     * @dev caller must be host address or risk critical vulnerabilies from unauthorized calls to this method by malicious actors.
     */
     function onAccept(IncomingPostRequest memory incoming) external override onlyHost {
 

@@ -9,15 +9,13 @@ import "@polytope-labs/ismp-solidity/interfaces/IDispatcher.sol";
 import "./interfaces/IZkVerifyAggregation.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./lib/Merkle.sol";
+import "./IsmpGuest.sol";
 
 /**
  * @title ZkVerifyAggregationIsmp Contract
  * @notice It allows receiving (from Hyperbridge), persisting and verifying aggregation proofs coming from zkVerify chain.
  */
-contract ZkVerifyAggregationIsmp is IZkVerifyAggregation, AccessControl, BaseIsmpModule {
-
-    // IIsmpHost Address
-    address private _host;
+contract ZkVerifyAggregationIsmp is IZkVerifyAggregation, AccessControl, IsmpGuest, BaseIsmpModule {
 
     /// @dev Role required for operator to submit/verify proofs.
     bytes32 public constant OPERATOR = keccak256("OPERATOR");
@@ -49,10 +47,9 @@ contract ZkVerifyAggregationIsmp is IZkVerifyAggregation, AccessControl, BaseIsm
     constructor(
         address _operator,
         address _ismpHost
-    ) {
+    ) IsmpGuest(_ismpHost) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // it is used as owner
         _grantRole(OPERATOR, _operator);
-        _host = _ismpHost;
     }
 
     /**
@@ -103,7 +100,7 @@ contract ZkVerifyAggregationIsmp is IZkVerifyAggregation, AccessControl, BaseIsm
     }
 
     function host() public view override returns (address) {
-        return _host;
+        return getHost();
     }
 
     /**

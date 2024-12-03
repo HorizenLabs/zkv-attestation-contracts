@@ -4,10 +4,12 @@ const { ethers } = require("hardhat");
 describe("ZkVerifyAggregationIsmp contract", function () {
     let ZkVerifyAggregationIsmp;
     let verifierInstance;
+    let mockFeeToken;
+    let dispatcherContract;
 
     const initialAttestationId = 1n;
 
-    let owner, operator, addr1, addr2, ismpHost, relayerAddress, addrs;
+    let owner, operator, addr1, addr2, ismpHost, relayerAddress, addrs, dispatcherSigner;
 
     let operatorRole = ethers.solidityPackedKeccak256(["string"], ["OPERATOR"]);
     let ownerRole = ethers.encodeBytes32String("");
@@ -80,6 +82,30 @@ describe("ZkVerifyAggregationIsmp contract", function () {
             "ZkVerifyAggregationIsmp"
         );
 
+        // Deploy mock fee token
+        const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
+        mockFeeToken = await ERC20Mock.deploy("Stable Mock", "sMock");
+        await mockFeeToken.waitForDeployment();
+
+        // Deploy minimal dispatcher with mock fee token
+        const DispatcherMock = await ethers.getContractFactory("DispatcherMock");
+        dispatcherContract = await DispatcherMock.deploy(await mockFeeToken.getAddress());
+        await dispatcherContract.waitForDeployment();
+
+        const dispatcherAddress = await dispatcherContract.getAddress();
+        await network.provider.send("hardhat_setBalance", [
+            dispatcherAddress,
+            "0x1000000000000000000"  // Some ETH
+        ]);
+
+        // Impersonate the dispatcher account
+        await network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [dispatcherAddress],
+        });
+
+        dispatcherSigner = await ethers.getSigner(dispatcherAddress);
+
         const stringToBytes = (str) => ethers.toUtf8Bytes(str);
 
         const encodedBody = ethers.AbiCoder.defaultAbiCoder().encode(
@@ -108,7 +134,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
          *************************************************************/
 
         //deploy verifier
-        verifierInstance = await ZkVerifyAggregationIsmp.deploy(operator.getAddress(), ismpHost.getAddress());
+        verifierInstance = await ZkVerifyAggregationIsmp.deploy(await operator.getAddress(), await dispatcherContract.getAddress());
         await verifierInstance.waitForDeployment();
     });
 
@@ -144,7 +170,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
      ********************************/
     it("ismpHost can invoke onAccept", async function () {
         await verifierInstance
-            .connect(ismpHost)
+            .connect(dispatcherSigner)
             .onAccept(incomingPostRequest);
         await expect(
             await verifierInstance
@@ -189,7 +215,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
 
         /* Positive Case */
         await verifierInstance
-            .connect(ismpHost)
+            .connect(dispatcherSigner)
             .onAccept(incomingPostRequest);
         await expect(
             await verifierInstance
@@ -200,7 +226,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         /* Negative Case */
         await expect(
             verifierInstance
-                .connect(ismpHost)
+                .connect(dispatcherSigner)
                 .onAccept(incomingPostRequest)
         ).to.be.revertedWithCustomError(verifierInstance, "InvalidAggregation");
     });
@@ -213,7 +239,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
      ********************************/
     it("verifyProofAggregation returns true for each leaf in the tree", async function () {
         await verifierInstance
-            .connect(ismpHost)
+            .connect(dispatcherSigner)
             .onAccept(incomingPostRequest);
         await expect(
             await verifierInstance
@@ -237,7 +263,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
 
     it("verifyProofAggregation returns false if leaf is not in path", async function () {
         await verifierInstance
-            .connect(ismpHost)
+            .connect(dispatcherSigner)
             .onAccept(incomingPostRequest);
         await expect(
             await verifierInstance
@@ -264,7 +290,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
 
     it("verifyProofAggregation returns false if leafIndex is out of bounds", async function () {
         await verifierInstance
-            .connect(ismpHost)
+            .connect(dispatcherSigner)
             .onAccept(incomingPostRequest);
         await expect(
             await verifierInstance
@@ -296,7 +322,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         incomingPostRequest.request.body = _encodedBody;
 
         await verifierInstance
-            .connect(ismpHost)
+            .connect(dispatcherSigner)
             .onAccept(incomingPostRequest);
         await expect(
             await verifierInstance

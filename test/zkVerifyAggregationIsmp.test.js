@@ -114,7 +114,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         );
 
         const postRequest = {
-            source: stringToBytes("source_machine_123"),
+            source: stringToBytes("SUBSTRATE-zkv_"),
             dest: stringToBytes("destination_machine_456"),
             nonce: 1234n,
             from: stringToBytes("module_from_789"),

@@ -10,6 +10,7 @@ import "./interfaces/IZkVerifyAggregation.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./lib/Merkle.sol";
 import "./IsmpGuest.sol";
+import {Bytes} from "@polytope-labs/solidity-merkle-trees/src/trie/Bytes.sol";
 
 /**
  * @title ZkVerifyAggregationIsmp Contract
@@ -17,8 +18,13 @@ import "./IsmpGuest.sol";
  */
 contract ZkVerifyAggregationIsmp is IZkVerifyAggregation, AccessControl, IsmpGuest, BaseIsmpModule {
 
+    using Bytes for bytes;
+
     /// @dev Role required for operator to submit/verify proofs.
     bytes32 public constant OPERATOR = keccak256("OPERATOR");
+
+    /// @notice State machine for source request
+    bytes public constant STATE_MACHINE = bytes("SUBSTRATE-zkv_");
 
     /// @notice Latest valid aggregationId for bridge events.
     uint256 public latestAggregationId;
@@ -38,6 +44,10 @@ contract ZkVerifyAggregationIsmp is IZkVerifyAggregation, AccessControl, IsmpGue
 
     /// @notice Prevent owner from handing over ownership
     error OwnerCannotRenounce();
+
+    // @notice Action is unauthorized
+    error UnauthorizedAction();
+
 
     /**
      * @notice Construct a new ZkVerifyAggregationIsmp contract
@@ -110,7 +120,10 @@ contract ZkVerifyAggregationIsmp is IZkVerifyAggregation, AccessControl, IsmpGue
     */
     function onAccept(IncomingPostRequest memory incoming) external override onlyHost {
 
-        (uint256 _aggregationId, bytes32 _proofsAggregation) = abi.decode(incoming.request.body, (uint256, bytes32));
+        PostRequest memory request = incoming.request;
+        if (!request.source.equals(STATE_MACHINE)) revert UnauthorizedAction();
+
+        (uint256 _aggregationId, bytes32 _proofsAggregation) = abi.decode(request.body, (uint256, bytes32));
 
         // Optionally, check that the new _aggregationId is sequential.
         if(isEnforcingSequentialAggregations && (_aggregationId != latestAggregationId + 1)) {

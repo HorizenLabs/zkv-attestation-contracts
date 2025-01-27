@@ -119,7 +119,6 @@ contract ZkVerifyAttestation is IZkVerifyAttestation, AccessControl {
     * @param _merklePath path from leaf to root of the merkle tree
     * @param _leafCount the number of leaves in the merkle tree
     * @param _index the 0 indexed `index`'th leaf from the bottom left of the tree, see test cases.
-    * @dev caller must have the OPERATOR role, admin can add caller via AccessControl.grantRole()
     */
    function verifyProofAttestation(
       uint256 _attestationId,

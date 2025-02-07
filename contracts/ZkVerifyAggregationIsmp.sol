@@ -6,8 +6,6 @@ import "@polytope-labs/ismp-solidity/interfaces/IIsmpModule.sol";
 import "@polytope-labs/ismp-solidity/interfaces/IIsmpHost.sol";
 import "@polytope-labs/ismp-solidity/interfaces/Message.sol";
 import "@polytope-labs/ismp-solidity/interfaces/IDispatcher.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./lib/Merkle.sol";
 import "./IsmpGuest.sol";
 import "./abstract/ZkVerifyAggregationBase.sol";
 import {Bytes} from "@polytope-labs/solidity-merkle-trees/src/trie/Bytes.sol";

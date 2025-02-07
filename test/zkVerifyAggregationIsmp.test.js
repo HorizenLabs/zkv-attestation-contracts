@@ -7,7 +7,8 @@ describe("ZkVerifyAggregationIsmp contract", function () {
     let mockFeeToken;
     let dispatcherContract;
 
-    const initialAttestationId = 1n;
+    const domainId = 1n;
+    const initialAggregationId = 1n;
 
     let owner, operator, addr1, addr2, ismpHost, relayerAddress, addrs, dispatcherSigner;
 
@@ -109,8 +110,8 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         const stringToBytes = (str) => ethers.toUtf8Bytes(str);
 
         const encodedBody = ethers.AbiCoder.defaultAbiCoder().encode(
-            ["uint256", "bytes32"],
-            [initialAttestationId, substrateTree.root]
+            ["uint256", "uint256", "bytes32"],
+            [domainId, initialAggregationId, substrateTree.root]
         );
 
         const postRequest = {
@@ -165,7 +166,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
 
     /********************************
      *
-     *    submitAttestation
+     *    onAccept
      *
      ********************************/
     it("ismpHost can invoke onAccept", async function () {
@@ -175,7 +176,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         await expect(
             await verifierInstance
                 .connect(operator)
-                .proofsAggregations(initialAttestationId)
+                .proofsAggregations(domainId, initialAggregationId)
         ).to.equal(substrateTree.root);
     });
 
@@ -186,51 +187,6 @@ describe("ZkVerifyAggregationIsmp contract", function () {
                 .onAccept(incomingPostRequest)
         ).to.be.revertedWithCustomError(verifierInstance, "UnauthorizedCall");
     });
-
-    it("operator can enable sequel aggregations", async function () {
-        await verifierInstance
-            .connect(operator)
-            .flipIsEnforcingSequentialAggregations();
-        await expect(
-            await verifierInstance
-                .connect(operator)
-                .isEnforcingSequentialAggregations()
-        ).to.equal(true);
-    });
-
-    it("non-operator cannot enable sequel aggregations", async function () {
-        await expect(
-            verifierInstance.connect(addr2).flipIsEnforcingSequentialAggregations()
-        ).to.be.revertedWith(
-            "AccessControl: account " +
-            (await addr2.getAddress()).toLowerCase() +
-            " is missing role 0x523a704056dcd17bcf83bed8b68c59416dac1119be77755efe3bde0a64e46e0c"
-        );
-    });
-
-    it("when sequencing is enabled, sequence enforced on onAccept", async function () {
-        await verifierInstance
-            .connect(operator)
-            .flipIsEnforcingSequentialAggregations();
-
-        /* Positive Case */
-        await verifierInstance
-            .connect(dispatcherSigner)
-            .onAccept(incomingPostRequest);
-        await expect(
-            await verifierInstance
-                .connect(operator)
-                .proofsAggregations(initialAttestationId)
-        ).to.equal(substrateTree.root);
-
-        /* Negative Case */
-        await expect(
-            verifierInstance
-                .connect(dispatcherSigner)
-                .onAccept(incomingPostRequest)
-        ).to.be.revertedWithCustomError(verifierInstance, "InvalidAggregation");
-    });
-
 
     /********************************
      *
@@ -244,14 +200,15 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         await expect(
             await verifierInstance
                 .connect(operator)
-                .proofsAggregations(initialAttestationId)
+                .proofsAggregations(domainId, initialAggregationId)
         ).to.equal(substrateTree.root);
 
         for (let i = 0, j = 1; i < substrateTree.leaves.length; i++, j++) {
             let returnVal = await verifierInstance
                 .connect(operator)
                 .verifyProofAggregation(
-                    initialAttestationId,
+                    domainId,
+                    initialAggregationId,
                     substrateTree.leaves[i],
                     substrateTree.proofs[i],
                     substrateTree.leaves.length,
@@ -268,7 +225,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         await expect(
             await verifierInstance
                 .connect(operator)
-                .proofsAggregations(initialAttestationId)
+                .proofsAggregations(domainId, initialAggregationId)
         ).to.equal(substrateTree.root);
 
         let leafIndex = 6;
@@ -278,7 +235,8 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         let returnVal = await verifierInstance
             .connect(operator)
             .verifyProofAggregation(
-                initialAttestationId,
+                domainId,
+                initialAggregationId,
                 substrateTree.leaves[mismatchLeafIndex],
                 merklePath,
                 substrateTree.leaves.length,
@@ -295,7 +253,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         await expect(
             await verifierInstance
                 .connect(operator)
-                .proofsAggregations(initialAttestationId)
+                .proofsAggregations(domainId, initialAggregationId)
         ).to.equal(substrateTree.root);
 
         let outOfBoundsLeafIndex = 8;
@@ -304,7 +262,8 @@ describe("ZkVerifyAggregationIsmp contract", function () {
             verifierInstance
                 .connect(operator)
                 .verifyProofAggregation(
-                    initialAttestationId,
+                    domainId,
+                    initialAggregationId,
                     substrateTree.leaves[0],
                     merklePath,
                     substrateTree.leaves.length,
@@ -315,8 +274,8 @@ describe("ZkVerifyAggregationIsmp contract", function () {
 
     it("verifyProofAggregation returns true if only one leaf and leaf matches root", async function () {
         const _encodedBody = ethers.AbiCoder.defaultAbiCoder().encode(
-            ["uint256", "bytes32"],
-            [initialAttestationId, minSubstrateTree.root]
+            ["uint256", "uint256", "bytes32"],
+            [domainId, initialAggregationId, minSubstrateTree.root]
         );
 
         incomingPostRequest.request.body = _encodedBody;
@@ -327,13 +286,14 @@ describe("ZkVerifyAggregationIsmp contract", function () {
         await expect(
             await verifierInstance
                 .connect(operator)
-                .proofsAggregations(initialAttestationId)
+                .proofsAggregations(domainId, initialAggregationId)
         ).to.equal(minSubstrateTree.root);
 
         let returnVal = await verifierInstance
             .connect(operator)
             .verifyProofAggregation(
-                initialAttestationId,
+                domainId,
+                initialAggregationId,
                 minSubstrateTree.leaves[0],
                 minSubstrateTree.proofs,
                 minSubstrateTree.leaves.length,

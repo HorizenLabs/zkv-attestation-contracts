@@ -2,13 +2,9 @@
 
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "../lib/Merkle.sol";
 
-abstract contract ZkVerifyAggregationBase is AccessControl {
-
-    /// @dev Role required for operator to submit/verify proofs.
-    bytes32 public constant OPERATOR = keccak256("OPERATOR");
+abstract contract ZkVerifyAggregationBase {
 
     /// @notice Mapping of domain Ids to aggregationIds to proofsAggregations.
     mapping(uint256 => mapping(uint256 => bytes32)) public proofsAggregations;
@@ -19,19 +15,10 @@ abstract contract ZkVerifyAggregationBase is AccessControl {
     /// @param _proofsAggregation Aggregated proofs.
     event AggregationPosted(uint256 indexed _domainId, uint256 indexed _aggregationId, bytes32 indexed _proofsAggregation);
 
-    /// @notice Prevent owner from handing over ownership
-    error OwnerCannotRenounce();
-
     /**
-    * @notice Construct a new NewHorizenProofVerifier contract
-    * @param _operator Operator for the contract
+    * @notice Construct a new ZkVerifyAggregationBase contract
     */
-    constructor(
-        address _operator
-    ) {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // it is used as owner
-        _grantRole(OPERATOR, _operator);
-    }
+    constructor() {}
 
     /**
      * @notice Verify a proof against a stored merkle tree
@@ -41,7 +28,6 @@ abstract contract ZkVerifyAggregationBase is AccessControl {
      * @param _merklePath path from leaf to root of the merkle tree
      * @param _leafCount the number of leaves in the merkle tree
      * @param _index the 0 indexed `index`'th leaf from the bottom left of the tree, see test cases.
-     * @dev caller must have the OPERATOR role, admin can add caller via AccessControl.grantRole()
     */
     function verifyProofAggregation(
         uint256 _domainId,
@@ -58,15 +44,13 @@ abstract contract ZkVerifyAggregationBase is AccessControl {
         return Merkle.verifyProofKeccak(proofsAggregation, _merklePath, _leafCount, _index, _leaf);
     }
 
+    function _registerAggregation(
+        uint256 _domainId,
+        uint256 _aggregationId,
+        bytes32 _proofsAggregation
+    ) internal {
+        proofsAggregations[_domainId][_aggregationId] = _proofsAggregation;
 
-    /**
-    * @notice prohibits owner to renounce its role with this override
-    */
-    function renounceRole(bytes32 role, address account) public override {
-        if(role == DEFAULT_ADMIN_ROLE) {
-            revert OwnerCannotRenounce();
-        }
-        super.renounceRole(role, account);
+        emit AggregationPosted(_domainId, _aggregationId, _proofsAggregation);
     }
-
 }

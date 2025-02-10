@@ -135,33 +135,8 @@ describe("ZkVerifyAggregationIsmp contract", function () {
          *************************************************************/
 
         //deploy verifier
-        verifierInstance = await ZkVerifyAggregationIsmp.deploy(await operator.getAddress(), await dispatcherContract.getAddress());
+        verifierInstance = await ZkVerifyAggregationIsmp.deploy(await dispatcherContract.getAddress());
         await verifierInstance.waitForDeployment();
-    });
-
-    it("should initialize correct parameters", async function () {
-        expect(
-            await verifierInstance.hasRole(ownerRole, owner.getAddress())
-        ).to.equal(true);
-    });
-
-    it("only owner can set operator", async function () {
-        await verifierInstance
-            .connect(owner)
-            .revokeRole(operatorRole, operator.getAddress());
-        await verifierInstance
-            .connect(owner)
-            .grantRole(operatorRole, addr1.getAddress());
-        await expect(
-            verifierInstance
-                .connect(addr1)
-                .grantRole(operatorRole, addr1.getAddress())
-        ).to.be.revertedWith(
-            "AccessControl: account " +
-            (await addr1.getAddress()).toLowerCase() +
-            " is missing role " +
-            ownerRole
-        );
     });
 
     /********************************

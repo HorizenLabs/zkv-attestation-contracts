@@ -26,13 +26,11 @@ contract ZkVerifyAggregationIsmp is ZkVerifyAggregationBase, IsmpGuest, BaseIsmp
 
     /**
      * @notice Construct a new ZkVerifyAggregationIsmp contract
-     * @param _operator Operator for the contract
-     * @param _operator Ismp host contract address
+     * @param _ismpHost Ismp host contract address
     */
     constructor(
-        address _operator,
         address _ismpHost
-    ) ZkVerifyAggregationBase(_operator) IsmpGuest(_ismpHost) {}
+    ) IsmpGuest(_ismpHost) {}
 
     function host() public view override returns (address) {
         return getHost();
@@ -50,8 +48,6 @@ contract ZkVerifyAggregationIsmp is ZkVerifyAggregationBase, IsmpGuest, BaseIsmp
 
         (uint256 _domainId, uint256 _aggregationId, bytes32 _proofsAggregation) = abi.decode(request.body, (uint256, uint256, bytes32));
 
-        proofsAggregations[_domainId][_aggregationId] = _proofsAggregation;
-
-        emit AggregationPosted(_domainId, _aggregationId, _proofsAggregation);
+        _registerAggregation(_domainId, _aggregationId, _proofsAggregation);
     }
 }

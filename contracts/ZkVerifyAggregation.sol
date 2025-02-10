@@ -10,33 +10,39 @@ import "./lib/Merkle.sol";
  * @title ZkVerifyAggregation Contract
  * @notice It allows submitting and verifying aggregation proofs coming from zkVerify chain.
  */
-contract ZkVerifyAggregation is ZkVerifyAggregationBase {
+contract ZkVerifyAggregation is AccessControl, ZkVerifyAggregationBase {
+
+   /// @dev Role required for operator to submit/verify proofs.
+   bytes32 public constant OPERATOR = keccak256("OPERATOR");
 
    /// @notice Batch submissions must have an equal number of ids to proof aggregations.
    error InvalidBatchCounts();
+
+   /// @notice Prevent owner from handing over ownership
+   error OwnerCannotRenounce();
 
    /**
     * @notice Construct a new NewHorizenProofVerifier contract
     * @param _operator Operator for the contract
     */
-   constructor(address _operator) ZkVerifyAggregationBase(_operator) {}
+   constructor(address _operator) {
+      _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // it is used as owner
+      _grantRole(OPERATOR, _operator);
+   }
 
    /**
     * @notice Submit Aggregation
     * @param _domainId the id of the domain
-    * @param _aggregation the id of the aggregation from the NewHorizen Relayer
+    * @param _aggregationId the id of the aggregation from the NewHorizen Relayer
     * @param _proofsAggregation aggregation of a set of proofs
     * @dev caller must have the OPERATOR role, admin can add caller via AccessControl.grantRole()
     */
    function submitAggregation(
       uint256 _domainId,
-      uint256 _aggregation,
+      uint256 _aggregationId,
       bytes32 _proofsAggregation
    ) external onlyRole(OPERATOR) {
-
-      proofsAggregations[_domainId][_aggregation] = _proofsAggregation;
-
-      emit AggregationPosted(_domainId, _aggregation, _proofsAggregation);
+      _registerAggregation(_domainId, _aggregationId, _proofsAggregation);
    }
 
    /**
@@ -57,11 +63,20 @@ contract ZkVerifyAggregation is ZkVerifyAggregationBase {
       }
 
       for (uint256 i; i < _aggregationIds.length;) {
-         proofsAggregations[_domainId][_aggregationIds[i]] = _proofsAggregations[i];
-         emit AggregationPosted(_domainId, _aggregationIds[i], _proofsAggregations[i]);
+         _registerAggregation(_domainId, _aggregationIds[i], _proofsAggregations[i]);
          unchecked {
             ++i;
          }
       }
+   }
+
+   /**
+    * @notice prohibits owner to renounce its role with this override
+    */
+   function renounceRole(bytes32 role, address account) public override {
+      if(role == DEFAULT_ADMIN_ROLE) {
+         revert OwnerCannotRenounce();
+      }
+      super.renounceRole(role, account);
    }
 }

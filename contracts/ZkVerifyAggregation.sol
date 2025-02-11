@@ -18,9 +18,6 @@ contract ZkVerifyAggregation is AccessControl, ZkVerifyAggregationBase {
    /// @notice Batch submissions must have an equal number of ids to proof aggregations.
    error InvalidBatchCounts();
 
-   /// @notice Prevent owner from handing over ownership
-   error OwnerCannotRenounce();
-
    /**
     * @notice Construct a new NewHorizenProofVerifier contract
     * @param _operator Operator for the contract

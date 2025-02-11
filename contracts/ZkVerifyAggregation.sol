@@ -69,14 +69,4 @@ contract ZkVerifyAggregation is AccessControl, ZkVerifyAggregationBase {
          }
       }
    }
-
-   /**
-    * @notice prohibits owner to renounce its role with this override
-    */
-   function renounceRole(bytes32 role, address account) public override {
-      if(role == DEFAULT_ADMIN_ROLE) {
-         revert OwnerCannotRenounce();
-      }
-      super.renounceRole(role, account);
-   }
 }

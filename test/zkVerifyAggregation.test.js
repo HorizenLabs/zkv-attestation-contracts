@@ -1,11 +1,12 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("ZkVerifyAttestation contract", function () {
-  let ZkVerifyAttestation;
+describe("ZkVerifyAggregation contract", function () {
+  let ZkVerifyAggregation;
   let verifierInstance;
 
-  const initialAttestationId = 1n;
+  const domainId = 1n;
+  const initialAggregationId = 1n;
 
   let owner, operator, addr1, addr2, addrs;
 
@@ -74,8 +75,8 @@ describe("ZkVerifyAttestation contract", function () {
    */
   beforeEach(async function () {
     [owner, operator, addr1, addr2, ...addrs] = await ethers.getSigners();
-    ZkVerifyAttestation = await ethers.getContractFactory(
-      "ZkVerifyAttestation"
+    ZkVerifyAggregation = await ethers.getContractFactory(
+      "ZkVerifyAggregation"
     );
 
     /*************************************************************
@@ -84,7 +85,7 @@ describe("ZkVerifyAttestation contract", function () {
      *************************************************************/
 
     //deploy verifier
-    verifierInstance = await ZkVerifyAttestation.deploy(operator.getAddress());
+    verifierInstance = await ZkVerifyAggregation.deploy(operator.getAddress());
     await verifierInstance.waitForDeployment();
   });
 
@@ -115,25 +116,25 @@ describe("ZkVerifyAttestation contract", function () {
 
   /********************************
    *
-   *    submitAttestation
+   *    submitAggregation
    *
    ********************************/
-  it("operator can invoke submitAttestation", async function () {
+  it("operator can invoke submitAggregation", async function () {
     await verifierInstance
       .connect(operator)
-      .submitAttestation(initialAttestationId, substrateTree.root);
+      .submitAggregation(domainId, initialAggregationId, substrateTree.root);
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations(initialAttestationId)
+        .proofsAggregations(domainId, initialAggregationId)
     ).to.equal(substrateTree.root);
   });
 
-  it("non-operator cannot invoke submitAttestation", async function () {
+  it("non-operator cannot invoke submitAggregation", async function () {
     await expect(
       verifierInstance
         .connect(owner)
-        .submitAttestation(initialAttestationId, substrateTree.root)
+        .submitAggregation(domainId, initialAggregationId, substrateTree.root)
     ).to.be.revertedWith(
       "AccessControl: account " +
         (await owner.getAddress()).toLowerCase() +
@@ -141,60 +142,17 @@ describe("ZkVerifyAttestation contract", function () {
     );
   });
 
-  it("operator can enable sequel attestations", async function () {
-    await verifierInstance
-      .connect(operator)
-      .flipIsEnforcingSequentialAttestations();
-    await expect(
-      await verifierInstance
-        .connect(operator)
-        .isEnforcingSequentialAttestations()
-    ).to.equal(true);
-  });
-
-  it("non-operator cannot enable sequel attestations", async function () {
-    await expect(
-      verifierInstance.connect(addr2).flipIsEnforcingSequentialAttestations()
-    ).to.be.revertedWith(
-      "AccessControl: account " +
-        (await addr2.getAddress()).toLowerCase() +
-        " is missing role 0x523a704056dcd17bcf83bed8b68c59416dac1119be77755efe3bde0a64e46e0c"
-    );
-  });
-
-  it("when sequencing is enabled, sequence enforced on submitAttestation", async function () {
-    await verifierInstance
-      .connect(operator)
-      .flipIsEnforcingSequentialAttestations();
-
-    /* Positive Case */
-    await verifierInstance
-      .connect(operator)
-      .submitAttestation(initialAttestationId, substrateTree.root);
-    await expect(
-      await verifierInstance
-        .connect(operator)
-        .proofsAttestations(initialAttestationId)
-    ).to.equal(substrateTree.root);
-
-    /* Negative Case */
-    await expect(
-      verifierInstance
-        .connect(operator)
-        .submitAttestation(initialAttestationId, substrateTree.root)
-    ).to.be.revertedWithCustomError(verifierInstance, "InvalidAttestation");
-  });
 
   /********************************
    *
-   *    submitAttestationBatch
+   *    submitAggregationBatchByDomainId
    *
    ********************************/
-  it("non-operator cannot invoke submitAttestationBatch", async function () {
+  it("non-operator cannot invoke submitAggregationBatchByDomainId", async function () {
     await expect(
       verifierInstance
         .connect(addr2)
-        .submitAttestationBatch([initialAttestationId], [substrateTree.root])
+        .submitAggregationBatchByDomainId(domainId, [initialAggregationId], [substrateTree.root])
     ).to.be.revertedWith(
       "AccessControl: account " +
         (await addr2.getAddress()).toLowerCase() +
@@ -202,62 +160,39 @@ describe("ZkVerifyAttestation contract", function () {
     );
   });
 
-  it("submitAttestationBatch must have an equal number of ids to proofs", async function () {
+  it("submitAggregationBatchByDomainId must have an equal number of ids to proofs", async function () {
     await expect(
       verifierInstance
         .connect(operator)
-        .submitAttestationBatch(
-          [initialAttestationId, initialAttestationId + 1n],
+        .submitAggregationBatchByDomainId(
+          domainId,
+          [initialAggregationId, initialAggregationId + 1n],
           [substrateTree.root]
         )
     ).to.be.revertedWithCustomError(verifierInstance, "InvalidBatchCounts");
   });
 
-  it("when sequencing is enabled, sequence enforced on submitAttestationBatch", async function () {
-    await verifierInstance
-      .connect(operator)
-      .flipIsEnforcingSequentialAttestations();
-
-    /* Positive Case */
-    let ids = [1, 2, 3];
-    const roots = [
-      "0xaa67a169b0bba217aa0aa88a65346920c84c42447c36ba5f7ea65f422c1fe5d8",
-      "0x2e6d31a5983a91251bfae5aefa1c0a19d8ba3cf601d0e8a706b4cfa9661a6b8a",
-      substrateTree.root,
-    ];
-
-    await verifierInstance.connect(operator).submitAttestationBatch(ids, roots);
-    await expect(
-      await verifierInstance.connect(operator).proofsAttestations(3n)
-    ).to.equal(substrateTree.root);
-
-    /* Negative Case */
-    ids = [5, 6, 7];
-    await expect(
-      verifierInstance.connect(operator).submitAttestationBatch(ids, roots)
-    ).to.be.revertedWithCustomError(verifierInstance, "InvalidAttestation");
-  });
-
   /********************************
    *
-   *    verifyProofAttestation
+   *    verifyProofAggregation
    *
    ********************************/
-  it("verifyProofAttestation returns true for each leaf in the tree", async function () {
+  it("verifyProofAggregation returns true for each leaf in the tree", async function () {
     await verifierInstance
       .connect(operator)
-      .submitAttestation(initialAttestationId, substrateTree.root);
+      .submitAggregation(domainId, initialAggregationId, substrateTree.root);
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations(initialAttestationId)
+        .proofsAggregations(domainId, initialAggregationId)
     ).to.equal(substrateTree.root);
 
     for (let i = 0, j = 1; i < substrateTree.leaves.length; i++, j++) {
       let returnVal = await verifierInstance
         .connect(operator)
-        .verifyProofAttestation(
-          initialAttestationId,
+        .verifyProofAggregation(
+          domainId,
+          initialAggregationId,
           substrateTree.leaves[i],
           substrateTree.proofs[i],
           substrateTree.leaves.length,
@@ -267,14 +202,14 @@ describe("ZkVerifyAttestation contract", function () {
     }
   });
 
-  it("verifyProofAttestation returns false if leaf is not in path", async function () {
+  it("verifyProofAggregation returns false if leaf is not in path", async function () {
     await verifierInstance
       .connect(operator)
-      .submitAttestation(initialAttestationId, substrateTree.root);
+      .submitAggregation(domainId, initialAggregationId, substrateTree.root);
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations(initialAttestationId)
+        .proofsAggregations(domainId, initialAggregationId)
     ).to.equal(substrateTree.root);
 
     let leafIndex = 6;
@@ -283,8 +218,9 @@ describe("ZkVerifyAttestation contract", function () {
 
     let returnVal = await verifierInstance
       .connect(operator)
-      .verifyProofAttestation(
-        initialAttestationId,
+      .verifyProofAggregation(
+        domainId,
+        initialAggregationId,
         substrateTree.leaves[mismatchLeafIndex],
         merklePath,
         substrateTree.leaves.length,
@@ -294,14 +230,14 @@ describe("ZkVerifyAttestation contract", function () {
     expect(returnVal).to.equal(false);
   });
 
-  it("verifyProofAttestation returns false if leafIndex is out of bounds", async function () {
+  it("verifyProofAggregation returns false if leafIndex is out of bounds", async function () {
     await verifierInstance
       .connect(operator)
-      .submitAttestation(initialAttestationId, substrateTree.root);
+      .submitAggregation(domainId, initialAggregationId, substrateTree.root);
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations(initialAttestationId)
+        .proofsAggregations(domainId, initialAggregationId)
     ).to.equal(substrateTree.root);
 
     let outOfBoundsLeafIndex = 8;
@@ -309,8 +245,9 @@ describe("ZkVerifyAttestation contract", function () {
     await expect(
       verifierInstance
         .connect(operator)
-        .verifyProofAttestation(
-          initialAttestationId,
+        .verifyProofAggregation(
+          domainId,
+          initialAggregationId,
           substrateTree.leaves[0],
           merklePath,
           substrateTree.leaves.length,
@@ -319,20 +256,21 @@ describe("ZkVerifyAttestation contract", function () {
     ).to.be.revertedWithCustomError(verifierInstance, "IndexOutOfBounds");
   });
 
-  it("verifyProofAttestation returns true if only one leaf and leaf matches root", async function () {
+  it("verifyProofAggregation returns true if only one leaf and leaf matches root", async function () {
     await verifierInstance
       .connect(operator)
-      .submitAttestation(initialAttestationId, minSubstrateTree.root);
+      .submitAggregation(domainId, initialAggregationId, minSubstrateTree.root);
     await expect(
       await verifierInstance
         .connect(operator)
-        .proofsAttestations(initialAttestationId)
+        .proofsAggregations(domainId, initialAggregationId)
     ).to.equal(minSubstrateTree.root);
 
     let returnVal = await verifierInstance
       .connect(operator)
-      .verifyProofAttestation(
-        initialAttestationId,
+      .verifyProofAggregation(
+        domainId,
+        initialAggregationId,
         minSubstrateTree.leaves[0],
         minSubstrateTree.proofs,
         minSubstrateTree.leaves.length,

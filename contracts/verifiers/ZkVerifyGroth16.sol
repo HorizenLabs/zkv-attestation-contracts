@@ -8,10 +8,25 @@ contract ZkVerifyGroth16 {
 
     bytes32 constant PROVING_SYSTEM_ID = keccak256(abi.encodePacked("groth16"));
 
+    /**
+     * @notice Construct a ZkVerifyGroth16 contract
+     * @param _zkVerifyAggregation the address of the zkVerifyAggregation contract instance
+     */
     constructor(address _zkVerifyAggregation) {
         zkVerifyAggregation = IVerifyProofAggregation(_zkVerifyAggregation);
     }
 
+    /**
+     * @notice Verify a Groth16 proof submitted to ZkVerify chain
+     * @param _vkHash the hash of the verification key
+     * @param _inputs the public inputs, as a list of field elements
+     * @param _domainId the id of the domain (from zkVerify chain)
+     * @param _aggregationId the id of the aggregation (from zkVerify chain)
+     * @param _merklePath path from leaf to root of the merkle tree (from zkVerify chain)
+     * @param _leafCount the number of leaves in the merkle tree (from zkVerify chain)
+     * @param _index the index of the proof inside the merkle tree (from zkVerify chain)
+     * @return bool the result of the verification
+     */
     function verify(
         bytes32 _vkHash,
         uint256[] memory _inputs,
@@ -26,10 +41,21 @@ contract ZkVerifyGroth16 {
             zkVerifyAggregation.verifyProofAggregation(_domainId, _aggregationId, leaf, _merklePath, _leafCount, _index);
     }
 
+    /**
+     * @notice Compute the statement hash associated to a Groth16 proof
+     * @param vkHash the hash of the verification key
+     * @param inputs the public inputs, as a list of field elements
+     * @return bytes32 the statement hash
+     */
     function statementHash(bytes32 vkHash, uint256[] memory inputs) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(PROVING_SYSTEM_ID, vkHash, keccak256(encodePublicInputs(inputs))));
     }
 
+    /**
+     * @notice Encode the public inputs of a Groth16 proof
+     * @param inputs the public inputs, as a list of field elements
+     * @return bytes the encoded public inputs
+     */
     function encodePublicInputs(uint256[] memory inputs) public pure returns (bytes memory) {
         uint256 numInputs = inputs.length;
         bytes32[] memory encodedInputs = new bytes32[](numInputs);

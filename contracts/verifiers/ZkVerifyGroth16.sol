@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "./interfaces/IVerifyProofAggregation.sol";
+import "../interfaces/IVerifyProofAggregation.sol";
 
 contract ZkVerifyGroth16 {
     IVerifyProofAggregation immutable zkVerifyAggregation;

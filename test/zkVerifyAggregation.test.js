@@ -3,14 +3,17 @@ const { ethers } = require("hardhat");
 
 describe("ZkVerifyAggregation contract", function () {
   let ZkVerifyAggregation;
+  let ZkVerifyAggregationProxy;
   let verifierInstance;
+  let proxyInstance;
 
   const domainId = 1n;
   const initialAggregationId = 1n;
 
-  let owner, operator, addr1, addr2, addrs;
+  let owner, operator, upgrader, addr1, addr2, addrs;
 
   let operatorRole = ethers.solidityPackedKeccak256(["string"], ["OPERATOR"]);
+  let upgraderRole = ethers.solidityPackedKeccak256(["string"], ["UPGRADER_ROLE"]);
   let ownerRole = ethers.encodeBytes32String("");
 
   let minSubstrateTree = {
@@ -74,7 +77,7 @@ describe("ZkVerifyAggregation contract", function () {
    * Construct a MerkleTree from the leaf nodes.
    */
   beforeEach(async function () {
-    [owner, operator, addr1, addr2, ...addrs] = await ethers.getSigners();
+    [owner, operator, upgrader, addr1, addr2, ...addrs] = await ethers.getSigners();
     ZkVerifyAggregation = await ethers.getContractFactory(
       "ZkVerifyAggregation"
     );
@@ -85,13 +88,36 @@ describe("ZkVerifyAggregation contract", function () {
      *************************************************************/
 
     //deploy verifier
-    verifierInstance = await ZkVerifyAggregation.deploy(operator.getAddress());
+    verifierInstance = await ZkVerifyAggregation.deploy();
     await verifierInstance.waitForDeployment();
+
+
+    const initData = ZkVerifyAggregation.interface.encodeFunctionData(
+        "initialize",
+        [await operator.getAddress(), await upgrader.getAddress()]
+    );
+
+    ZkVerifyAggregationProxy = await ethers.getContractFactory(
+        "ZkVerifyAggregationProxy"
+    );
+    proxyInstance = await ZkVerifyAggregationProxy.deploy(
+        await verifierInstance.getAddress(),
+        initData
+    );
+    await proxyInstance.waitForDeployment();
+
+    // Create a contract instance that points to the proxy but uses the ABI of the implementation
+    verifierInstance = ZkVerifyAggregation.attach(
+        await proxyInstance.getAddress()
+    );
   });
 
   it("should initialize correct parameters", async function () {
     expect(
-      await verifierInstance.hasRole(ownerRole, owner.getAddress())
+        await verifierInstance.hasRole(ownerRole, owner.getAddress())
+    ).to.equal(true);
+    expect(
+        await verifierInstance.hasRole(upgraderRole, upgrader.getAddress())
     ).to.equal(true);
   });
 
@@ -278,5 +304,56 @@ describe("ZkVerifyAggregation contract", function () {
       );
 
     expect(returnVal).to.equal(true);
+  });
+
+  /********************************
+   *
+   *    Upgrade Tests
+   *
+   ********************************/
+  it("should allow upgrade by admin", async function () {
+    // Deploy a new implementation
+    const ZkVerifyAggregationV2 = await ethers.getContractFactory(
+        "ZkVerifyAggregation"
+    );
+    const implementationV2 = await ZkVerifyAggregationV2.deploy();
+    await implementationV2.waitForDeployment();
+
+    // Upgrade to the new implementation
+    await verifierInstance.connect(upgrader).upgradeTo(implementationV2.getAddress());
+
+    // Verify the upgrade worked by checking the implementation address
+    // This requires accessing the ERC1967 storage slot directly
+    const implementationSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+    const currentImplementation = await ethers.provider.getStorage(
+        await proxyInstance.getAddress(),
+        implementationSlot
+    );
+
+    // Format the implementation address from the storage value
+    const formattedImplementation = "0x" + currentImplementation.slice(26);
+
+    expect(formattedImplementation.toLowerCase()).to.equal(
+        (await implementationV2.getAddress()).toLowerCase()
+    );
+  });
+
+  it("should not allow non-upgrader to upgrade", async function () {
+    // Deploy a new implementation
+    const ZkVerifyAggregationV2 = await ethers.getContractFactory(
+        "ZkVerifyAggregation"
+    );
+    const implementationV2 = await ZkVerifyAggregationV2.deploy();
+    await implementationV2.waitForDeployment();
+
+    // Try to upgrade from a non-authorized account
+    await expect(
+        verifierInstance.connect(addr1).upgradeTo(implementationV2.getAddress())
+    ).to.be.revertedWith(
+        "AccessControl: account " +
+        (await addr1.getAddress()).toLowerCase() +
+        " is missing role " +
+        upgraderRole
+    );
   });
 });

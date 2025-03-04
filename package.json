@@ -13,6 +13,7 @@
     "hardhat": "^2.22.15"
   },
   "dependencies": {
+    "@openzeppelin/contracts-upgradeable": "4.8.2",
     "@openzeppelin/contracts": "4.8.2",
     "@polytope-labs/solidity-merkle-trees" : "0.3.4",
     "@polytope-labs/ismp-solidity" : "1.0.0"

@@ -3,28 +3,52 @@
 pragma solidity 0.8.20;
 
 import "./abstract/ZkVerifyAggregationBase.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./lib/Merkle.sol";
 
 /**
  * @title ZkVerifyAggregation Contract
  * @notice It allows submitting and verifying aggregation proofs coming from zkVerify chain.
  */
-contract ZkVerifyAggregation is AccessControl, ZkVerifyAggregationBase {
+contract ZkVerifyAggregation is Initializable, AccessControlUpgradeable, UUPSUpgradeable, ZkVerifyAggregationBase {
 
    /// @dev Role required for operator to submit/verify proofs.
    bytes32 public constant OPERATOR = keccak256("OPERATOR");
 
+   /// @dev Role that allows upgrading the implementation
+   bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+
    /// @notice Batch submissions must have an equal number of ids to proof aggregations.
    error InvalidBatchCounts();
 
+   /// @custom:oz-upgrades-unsafe-allow constructor
+   constructor() {
+      _disableInitializers();
+   }
+
    /**
-    * @notice Construct a new NewHorizenProofVerifier contract
+    * @notice Initialize the contract (replaces constructor)
     * @param _operator Operator for the contract
+    * @param _upgrader Upgrader address for the contract
     */
-   constructor(address _operator) {
+   function initialize(address _operator, address _upgrader) public initializer {
+      __ZkVerifyAggregation_init(_operator, _upgrader);
+   }
+
+   /**
+    * @notice Initialize the contract (replaces constructor)
+    * @param _operator Operator for the contract
+    * @param _upgrader Upgrader address for the contract
+    */
+   function __ZkVerifyAggregation_init(address _operator, address _upgrader) internal onlyInitializing {
+      __AccessControl_init();
+      __UUPSUpgradeable_init();
+
       _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // it is used as owner
       _grantRole(OPERATOR, _operator);
+      _grantRole(UPGRADER_ROLE, _upgrader);
    }
 
    /**
@@ -66,4 +90,10 @@ contract ZkVerifyAggregation is AccessControl, ZkVerifyAggregationBase {
          }
       }
    }
+
+   /**
+    * @notice Function that allows the contract to be upgraded
+    * @dev Only accounts with the UPGRADER_ROLE can call this function
+    */
+   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 }

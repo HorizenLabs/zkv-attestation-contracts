@@ -3,15 +3,19 @@ const { ethers } = require("hardhat");
 
 describe("ZkVerifyAggregationIsmp contract", function () {
     let ZkVerifyAggregationIsmp;
+    let ZkVerifyAggregationIsmpProxy;
     let verifierInstance;
+    let proxyInstance;
+
     let mockFeeToken;
     let dispatcherContract;
 
     const domainId = 1n;
     const initialAggregationId = 1n;
 
-    let owner, operator, addr1, addr2, ismpHost, relayerAddress, addrs, dispatcherSigner;
+    let owner, operator, upgrader, addr1, addr2, ismpHost, relayerAddress, addrs, dispatcherSigner;
 
+    let upgraderRole = ethers.solidityPackedKeccak256(["string"], ["UPGRADER_ROLE"]);
     let operatorRole = ethers.solidityPackedKeccak256(["string"], ["OPERATOR"]);
     let ownerRole = ethers.encodeBytes32String("");
 
@@ -78,7 +82,7 @@ describe("ZkVerifyAggregationIsmp contract", function () {
      * Construct a MerkleTree from the leaf nodes.
      */
     beforeEach(async function () {
-        [owner, operator, addr1, addr2, ismpHost, relayerAddress, ...addrs] = await ethers.getSigners();
+        [owner, operator, upgrader, addr1, addr2, ismpHost, relayerAddress, ...addrs] = await ethers.getSigners();
         ZkVerifyAggregationIsmp = await ethers.getContractFactory(
             "ZkVerifyAggregationIsmp"
         );
@@ -135,8 +139,29 @@ describe("ZkVerifyAggregationIsmp contract", function () {
          *************************************************************/
 
         //deploy verifier
-        verifierInstance = await ZkVerifyAggregationIsmp.deploy(await dispatcherContract.getAddress());
+        verifierInstance = await ZkVerifyAggregationIsmp.deploy();
         await verifierInstance.waitForDeployment();
+
+        // Create initialization data
+        const initData = ZkVerifyAggregationIsmp.interface.encodeFunctionData(
+            "initialize",
+            [await dispatcherContract.getAddress(), await upgrader.getAddress()]
+        );
+
+        // Deploy the proxy contract
+        ZkVerifyAggregationIsmpProxy = await ethers.getContractFactory(
+            "ZkVerifyAggregationProxy"
+        );
+        proxyInstance = await ZkVerifyAggregationIsmpProxy.deploy(
+            await verifierInstance.getAddress(),
+            initData
+        );
+        await proxyInstance.waitForDeployment();
+
+        // Create a contract instance that points to the proxy but uses the ABI of the implementation
+        verifierInstance = ZkVerifyAggregationIsmp.attach(
+            await proxyInstance.getAddress()
+        );
     });
 
     /********************************
@@ -276,5 +301,56 @@ describe("ZkVerifyAggregationIsmp contract", function () {
             );
 
         expect(returnVal).to.equal(true);
+    });
+
+    /********************************
+     *
+     *    Upgrade Tests
+     *
+     ********************************/
+    it("should allow upgrade by admin", async function () {
+        // Deploy a new implementation
+        const ZkVerifyAggregationIsmpV2 = await ethers.getContractFactory(
+            "ZkVerifyAggregationIsmp"
+        );
+        const implementationV2 = await ZkVerifyAggregationIsmpV2.deploy();
+        await implementationV2.waitForDeployment();
+
+        // Upgrade to the new implementation
+        await verifierInstance.connect(upgrader).upgradeTo(implementationV2.getAddress());
+
+        // Verify the upgrade worked by checking the implementation address
+        // This requires accessing the ERC1967 storage slot directly
+        const implementationSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+        const currentImplementation = await ethers.provider.getStorage(
+            await proxyInstance.getAddress(),
+            implementationSlot
+        );
+
+        // Format the implementation address from the storage value
+        const formattedImplementation = "0x" + currentImplementation.slice(26);
+
+        expect(formattedImplementation.toLowerCase()).to.equal(
+            (await implementationV2.getAddress()).toLowerCase()
+        );
+    });
+
+    it("should not allow non-upgrader to upgrade", async function () {
+        // Deploy a new implementation
+        const ZkVerifyAggregationIsmpV2 = await ethers.getContractFactory(
+            "ZkVerifyAggregationIsmp"
+        );
+        const implementationV2 = await ZkVerifyAggregationIsmpV2.deploy();
+        await implementationV2.waitForDeployment();
+
+        // Try to upgrade from a non-authorized account
+        await expect(
+            verifierInstance.connect(addr1).upgradeTo(implementationV2.getAddress())
+        ).to.be.revertedWith(
+            "AccessControl: account " +
+            (await addr1.getAddress()).toLowerCase() +
+            " is missing role " +
+            upgraderRole
+        );
     });
 });

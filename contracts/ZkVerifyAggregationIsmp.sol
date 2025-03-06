@@ -17,7 +17,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
  * @title ZkVerifyAggregationIsmp Contract
  * @notice It allows receiving (from Hyperbridge), persisting and verifying aggregation proofs coming from zkVerify chain.
  */
-contract ZkVerifyAggregationIsmp is ZkVerifyAggregationBase, Initializable, AccessControlUpgradeable, UUPSUpgradeable, IsmpGuest, BaseIsmpModule {
+contract ZkVerifyAggregationIsmp is Initializable, AccessControlUpgradeable, UUPSUpgradeable, IsmpGuest, BaseIsmpModule, ZkVerifyAggregationBase {
 
     using Bytes for bytes;
 

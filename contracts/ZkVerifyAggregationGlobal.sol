@@ -12,7 +12,7 @@ import "./ZkVerifyAggregation.sol";
  * @title ZkVerifyAggregationGlobal Contract
  * @notice It allows submitting and verifying aggregation proofs coming from zkVerify chain for both versions Ismp and Non Ismp one.
  */
-contract ZkVerifyAggregationGlobal is ZkVerifyAggregationBase, Initializable, AccessControlUpgradeable, UUPSUpgradeable, IsmpGuest, BaseIsmpModule {
+contract ZkVerifyAggregationGlobal is Initializable, AccessControlUpgradeable, UUPSUpgradeable, IsmpGuest, BaseIsmpModule, ZkVerifyAggregationBase {
 
     /// @dev Role required for operator to submit/verify proofs.
     bytes32 public constant OPERATOR = keccak256("OPERATOR");
